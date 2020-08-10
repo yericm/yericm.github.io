@@ -190,6 +190,561 @@
             
 
   
+    <article id="post-oauth2和spring-security-oauth" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+  
+  
+    <h1 itemprop="name">
+	
+	  <a class="article-title" href="/2020/08/09/oauth2%E5%92%8Cspring-security-oauth/" target="_blank">oauth2和spring-security-oauth</a>
+  
+    </h1>
+  
+
+
+  
+  
+<a href="/2020/08/09/oauth2%E5%92%8Cspring-security-oauth/" class="archive-article-date">
+        <time datetime="2020-08-09T12:16:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-08-09</time>
+</a>
+
+  
+  
+    
+
+  
+  </header>
+  
+  <div class="article-entry" itemprop="articleBody">
+    
+    <h3 id="oauth2"><a href="#oauth2" class="headerlink" title="oauth2"></a>oauth2</h3><p>OAuth 2.0(<a href="https://oauth.net/2/" target="_blank" rel="noopener">https://oauth.net/2/</a>)是用于授权的行业标准协议。OAuth 2.0致力于简化客户端开发人员的工作，同时为Web应用程序，台式机应用程序，移动电话和客厅设备提供特定的授权流程。就是<strong>用来授权第三方应用，获取用户数据</strong>。</p>
+<h3 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h3><h4 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h4><p>oauth定义了四种角色：</p>
+<table>
+<thead>
+<tr>
+<th align="left">角色名称</th>
+<th>英文名称</th>
+<th>描述</th>
+<th>web例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">资源所有者</td>
+<td>resource owner</td>
+<td>能够授予对受保护资源访问权限的实体。当资源所有者是一个人时，它称为最终用户</td>
+<td>用户</td>
+</tr>
+<tr>
+<td align="left">资源服务器</td>
+<td>resource server</td>
+<td>托管受保护资源的服务器，能够接受并使用访问令牌响应受保护的资源请求</td>
+<td>后端资源数据</td>
+</tr>
+<tr>
+<td align="left">客户</td>
+<td>client</td>
+<td>代表资源所有者及其授权发出受保护资源请求的应用程序</td>
+<td>前端应用</td>
+</tr>
+<tr>
+<td align="left">授权服务器</td>
+<td>authorization server</td>
+<td>在成功认证资源所有者并获得授权后，服务器向客户端发出访问令牌。</td>
+<td>后端授权</td>
+</tr>
+</tbody></table>
+<p>授权服务器可以是与资源服务器<strong>相同的服务器</strong>或<strong>单独的服务器</strong>。 单个授权服务器可以发出由<strong>多个资源服务器接受的访问令牌</strong>。</p>
+<h4 id="协议流程"><a href="#协议流程" class="headerlink" title="协议流程"></a>协议流程</h4><pre><code>+--------+                               +-----------------+
+|        |--（A）------- 授权请求 --------&gt;|                 |
+|        |                               | 资源所有者（用户） |
+|        |&lt;-（B）------- 授权许可 ---------|                 |
+|        |                               +-----------------+
+|        |
+|        |                               +-----------------+
+|        |--（C）------- 授权许可 --------&gt;|                 |
+| 客户端  |                               |  授权服务器（1    |
+|        |&lt;-（D）----- Access Token ----）|                 |
+|        |                               +-----------------+
+|        |
+|        |                               +-----------------+
+|        |（-（E）---- Access Token -----&gt;|                 |
+|        |                               |   资源服务器（2   |
+|        |&lt;-（F）---- 获取受保护的资源 -----|                 |
++--------+                               +-----------------+</code></pre><p>（A）客户端请求资源所有者的授权。授权请求可以直接发送给资源所有者(如图所示)，或者最好通过作为中介的授权服务器间接发送。<strong>简单地说，用户点击登录，会转到登录页面显示给用户。</strong></p>
+<p>（B）客户收到授权服务器的授权，即代表资源所有者授权的凭证，使用 Oauth2 规范中定义的四种授权类型之一或使用扩展授权类型表示。授权授予类型取决于客户机用于请求授权的方法和授权服务器支持的类型。<strong>简单地说，选择 oauth2 中四种授权模式或授权服务器自定义的授权模式进行授权。</strong></p>
+<p>（C）客户端通过与授权服务器进行身份验证并提供授权方式来请求访问令牌。<strong>简单地说，客户端会选择授权模式向授权服务器请求访问令牌。</strong></p>
+<p>（D）授权服务器对客户端进行身份验证并验证授权grant_type，如果有效，则发出访问令牌。<strong>简单地说，授权成功发放令牌。</strong></p>
+<p>（E）客户端携带访问令牌从资源服务器请求受保护的资源。<strong>简单地说，携带 令牌 请求资源服务器。</strong></p>
+<p>（F）资源服务器验证访问令牌，如果有效，则为请求提供服务。<strong>简单地说，如果令牌有效，就允许访问资源。</strong></p>
+<h4 id="授权模式"><a href="#授权模式" class="headerlink" title="授权模式"></a>授权模式</h4><p>客户端必须得到用户的授权（authorization grant），才能获得令牌（access token）。OAuth 2.0定义了四种授权方式如下：</p>
+<ul>
+<li>授权码模式（authorization code）</li>
+<li>密码模式（resource owner password credentials）</li>
+<li>简化模式（implicit）</li>
+<li>客户端模式（client credentials）</li>
+<li>扩展模式（extension）</li>
+</ul>
+<h5 id="授权码模式"><a href="#授权码模式" class="headerlink" title="授权码模式"></a>授权码模式</h5><p>他是一种流程最为严密，安全性最高的授权模式，因为资源所有者只与授权服务器进行身份验证，所以资源所有者的凭据不会与用户共享，授权码提供了一些重要的安全好处，例如能够对客户端进行身份验证，<font color="Blue">以及直接将访问令牌传输到客户端而无需通过资源所有者的用户代理传递它，并可能将其公开给其他人，包括资源所有者。</font></p>
+<p>主要为以下几个步骤：</p>
+<ol>
+<li>用户进入应用，携带一个 <em>重定向应用地址</em> 到 <strong>授权服务器</strong> 进行登录，在登录成功并且用户同意授权以后，授权服务携带一个生成的 <strong>授权码</strong> 重定向到指定的 <em>重定向应用地址</em> 。</li>
+<li>应用携带接收到的 <strong>授权码</strong> 再次去请求 <strong>授权服务器</strong>，在验证成功后，验证服务器下发 token。</li>
+</ol>
+<h5 id="密码模式"><a href="#密码模式" class="headerlink" title="密码模式"></a>密码模式</h5><p>这种模式可以理解成我们普通应用的用户名密码登录，客户端使用这些信息，向”服务商提供商”索要授权。</p>
+<h5 id="简化模式"><a href="#简化模式" class="headerlink" title="简化模式"></a>简化模式</h5><p>简化模式不通过第三方应用程序的服务器，直接在浏览器中向认证服务器申请令牌，跳过了”授权码”这个步骤，因此得名。所有步骤在浏览器中完成，令牌对访问者是可见的，且客户端不需要认证。</p>
+<h5 id="客户端模式"><a href="#客户端模式" class="headerlink" title="客户端模式"></a>客户端模式</h5><p>客户端模式指客户端以自己的名义，而不是以用户的名义，向”服务提供商”进行认证。当授权范围仅限于在客户端控制下的受保护资源或先前与授权服务器一起安排的受保护资源时，可以将客户端凭据（或其他形式的客户端身份验证）用作授权授予。</p>
+<h4 id="访问令牌（Access-Token）"><a href="#访问令牌（Access-Token）" class="headerlink" title="访问令牌（Access Token）"></a>访问令牌（Access Token）</h4><p>访问令牌是用于访问受保护资源的凭据。访问令牌是表示颁发给客户端的授权的字符串。字符串对客户端来说通常是不透明的。令牌表示特定的访问范围和持续时间，由资源所有者授予，并由资源服务器和授权服务器强制执行。</p>
+<h4 id="刷新令牌（Refresh-Token）"><a href="#刷新令牌（Refresh-Token）" class="headerlink" title="刷新令牌（Refresh Token）"></a>刷新令牌（Refresh Token）</h4><p>刷新令牌是用于获取访问令牌的凭据。刷新令牌由授权服务器颁发给客户端，用于在当前访问令牌无效或过期时获取新的访问令牌，或用于获取具有相同或更窄范围的其他访问令牌（访问令牌的生存期可能比资源所有者授权的更短，权限更少）。发布刷新令牌是可选的，由授权服务器决定。与访问令牌不同，刷新令牌仅用于授权服务器，从不发送到资源服务器。</p>
+<h5 id="协议流程-1"><a href="#协议流程-1" class="headerlink" title="协议流程"></a>协议流程</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">+--------+                                           +---------------+</span><br><span class="line">  |        |--(A)------- Authorization Grant ---------&gt;|               |</span><br><span class="line">  |        |                                           |               |</span><br><span class="line">  |        |&lt;-(B)----------- Access Token -------------|               |</span><br><span class="line">  |        |               &amp; Refresh Token             |               |</span><br><span class="line">  |        |                                           |               |</span><br><span class="line">  |        |                            +----------+   |               |</span><br><span class="line">  |        |--(C)---- Access Token ----&gt;|          |   |               |</span><br><span class="line">  |        |                            |          |   |               |</span><br><span class="line">  |        |&lt;-(D)- Protected Resource --| Resource |   | Authorization |</span><br><span class="line">  | Client |                            |  Server  |   |     Server    |</span><br><span class="line">  |        |--(E)---- Access Token ----&gt;|          |   |               |</span><br><span class="line">  |        |                            |          |   |               |</span><br><span class="line">  |        |&lt;-(F)- Invalid Token Error -|          |   |               |</span><br><span class="line">  |        |                            +----------+   |               |</span><br><span class="line">  |        |                                           |               |</span><br><span class="line">  |        |--(G)----------- Refresh Token -----------&gt;|               |</span><br><span class="line">  |        |                                           |               |</span><br><span class="line">  |        |&lt;-(H)----------- Access Token -------------|               |</span><br><span class="line">  +--------+           &amp; Optional Refresh Token        +---------------+</span><br><span class="line"></span><br><span class="line">               Figure 2: Refreshing an Expired Access Token</span><br></pre></td></tr></table></figure>
+
+<h3 id="客户注册"><a href="#客户注册" class="headerlink" title="客户注册"></a>客户注册</h3><p>在初始化协议之前，客户机需向授权服务器注册。客户端向授权服务器注册的方法超出了本规范的范围，但通常涉及到最终用户与HTML注册表单的交互。客户端注册不需要在客户端和授权服务器之间进行直接交互。当授权服务器支持时，注册可以依赖于其他方法来建立信任并获得所需的客户端属性（例如，重定向URI、客户端类型）。注册客户端时应提供一下内容：</p>
+<ul>
+<li>客户端类型</li>
+<li>重定向URL</li>
+<li>包括授权服务器所需的任何其他信息，例如应用名，网页，描述，logo等</li>
+</ul>
+<h4 id="客户端类型"><a href="#客户端类型" class="headerlink" title="客户端类型"></a>客户端类型</h4><p>基于与授权服务器进行安全验证的能力定义了两种类型（是否能维持凭据的机密性），分别是机密客户端（confidential）和公开客户端（public）。客户端类型指定基于授权服务器的安全认证的定义及其可接受的暴露客户凭证级别。授权服务器不应该对客户端类型进行假设。</p>
+<h4 id="客户端标识"><a href="#客户端标识" class="headerlink" title="客户端标识"></a>客户端标识</h4><p>授权服务器向注册客户端颁发一个代表了客户端提供的注册信息的独特字符串作为标识。该标识是公开的，暴露给资源拥有者并且不能被单独用于客户端认证。</p>
+<h4 id="客户端验证"><a href="#客户端验证" class="headerlink" title="客户端验证"></a>客户端验证</h4><p>如果客户端类型是机密的，客户端和授权服务器应建立一个合适的客户端认证方法用于授权服务器的安全性需求。授权服务器可能接受满足安全性需求的任何形式的客户端验证。</p>
+<p>机密客户端典型的建立一系列客户端凭据用于授权服务器进行身份验证（密码，公钥，私钥）。</p>
+<p>授权服务器可能建立一个对公开客户端的验证方法。但是授权服务器一定不能依赖公开客户端验证达到识别客户端的目的。</p>
+<p>客户端不能在每个请求中使用多个身份验证方法。</p>
+<h5 id="客户端密码验证"><a href="#客户端密码验证" class="headerlink" title="客户端密码验证"></a>客户端密码验证</h5><p>拥有客户端密码的客户端可能使用HTTP Basic来与授权服务器进行认证。授权服务器可能支持在请求体中包含客户端凭据，参数包括client_id和client_secret。但并不推荐在请求提中使用这两个参数包含客户端凭据，应该限于不能直接采用HTTP基本身份验证方案的客户端，并且只能包含在请求体中。</p>
+<p><font color="Red">在 spring security oauth 中，推荐加密我们的客户端信息。一般来说我们使用的是 <strong>密码验证</strong> 的方式加密我们的客户端信息。</font></p>
+<p>推荐的方式是使用 HTTP Basic ，我们需要设置以下参数，当设置成功以后将客户端凭证加密存放在请求头中去请求授权信息，参数如下：</p>
+<table>
+<thead>
+<tr>
+<th>参数名称</th>
+<th>是否必填</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>client_id</td>
+<td>REQUIRED</td>
+<td>客户端 id</td>
+</tr>
+<tr>
+<td>client_secret</td>
+<td>REQUIRED</td>
+<td>客户端密码，如果客户机secret是空字符串，则客户机可以省略该参数</td>
+</tr>
+</tbody></table>
+<p>当我们请求的时候，需要设置相应的客户端认证信息，并存放在请求头中，设置方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Authorization: Basic client_id：client_secret base64编码</span><br></pre></td></tr></table></figure>
+
+<h5 id="其它验证"><a href="#其它验证" class="headerlink" title="其它验证"></a>其它验证</h5><p>授权服务器可以支持任何与其安全要求匹配的合适的HTTP身份验证方案。当使用其他身份验证方法时，授权服务器必须定义客户端标识（注册记录）和认证方案之间的映射。</p>
+<h4 id="未注册客户端"><a href="#未注册客户端" class="headerlink" title="未注册客户端"></a>未注册客户端</h4><p>该规范并没有排除对未注册客户端的使用。但是需要做额外的安全性分析并审查互操作性的影响。</p>
+<h3 id="协议端点"><a href="#协议端点" class="headerlink" title="协议端点"></a>协议端点</h3><p>授权过程使用两个授权服务器端点:</p>
+<ul>
+<li>授权端点(Authorization endpoint)-客户端用于通过用户代理重定向从资源所有者获取授权码。</li>
+</ul>
+<blockquote>
+<p>如果授权请求由于丢失而导致验证失败，无效或不匹配的重定向URI，授权服务器应该将错误告知资源所有者，并且绝不能自动将用户代理重定向到无效的重定向URI。</p>
+</blockquote>
+<ul>
+<li>令牌端点(Token endpoint)-客户端使用授权码交换访问令牌，通常伴有客户端认证。</li>
+</ul>
+<p>以及一个客户端端点：</p>
+<ul>
+<li>重定向端点(Redirection endpoint)-授权服务器用于通过资源所有者用户代理向客户端返回含有授权凭据的响应。</li>
+</ul>
+<p>授权服务器应要求所有客户端注册其重定向端点，然后再使用授权端点，</p>
+<blockquote>
+<p>如果已经注册了多个重定向URI，若仅一部分重定向URI已注册，或者没有重定向URI已注册，客户端必须在其中包含重定向URI使用“ redirect_uri”请求参数的授权请求。</p>
+</blockquote>
+<p><strong>不是每个授权类型都用所有的端点，扩展的授权类型可能会定义附加的端点。</strong></p>
+<h3 id="获取授权"><a href="#获取授权" class="headerlink" title="获取授权"></a>获取授权</h3><p><strong>以下基于spring security oauth2:</strong></p>
+<h4 id="授权码模式-1"><a href="#授权码模式-1" class="headerlink" title="授权码模式"></a>授权码模式</h4><h5 id="授权端点"><a href="#授权端点" class="headerlink" title="授权端点"></a>授权端点</h5><p>/oauth/authorize：授权端点，通过此端点跳转到 <strong>授权服务器</strong> 进行认证，完成第一个请求。携带如下参数：</p>
+<table>
+<thead>
+<tr>
+<th><strong>参数名称</strong></th>
+<th><strong>是否必填</strong></th>
+<th><strong>描述</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>response_type</td>
+<td>是</td>
+<td>表示授权类型，此处的值固定为”code”</td>
+</tr>
+<tr>
+<td>client_id</td>
+<td>是</td>
+<td>表示客户端的ID</td>
+</tr>
+<tr>
+<td>redirect_uri</td>
+<td>否</td>
+<td>表示获取授权码后重定向地址</td>
+</tr>
+<tr>
+<td>scope</td>
+<td>否</td>
+<td>表示申请的权限范围</td>
+</tr>
+<tr>
+<td>state</td>
+<td>否</td>
+<td>表示客户端的当前状态，可以指定任意值，认证服务器会原封不动地返回这个值,用于防止跨站点请求伪造（CSRF）</td>
+</tr>
+</tbody></table>
+<p>授权成功的情况，会携带以下两个参数重定向到到 <strong>redirect_uri</strong> 中：</p>
+<table>
+<thead>
+<tr>
+<th>参数名称</th>
+<th>是否必有</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>code</td>
+<td>是</td>
+<td>授权服务器生成的授权代码。授权代码必须在发布后不久过期，以降低泄漏的风险。建议授权码的最长生存期为10分钟,如果一个授权码被多次使用，授权服务器必须拒绝该请求，并且应该（在可能的情况下）撤销之前基于该授权码发出的所有令牌。</td>
+</tr>
+<tr>
+<td>state</td>
+<td>否</td>
+<td>如果上一步中提供 <code>state</code> 参数，会原封不动地返回这个值。</td>
+</tr>
+</tbody></table>
+<p>授权失败的情况分为两种：</p>
+<ol>
+<li>如果请求由于重定向URI丢失、无效或不匹配而失败，或者如果客户端标识符丢失或无效，授权服务器应通知资源所有者错误，并且<strong>不得自动将用户代理重定向到无效的重定向URI</strong>。</li>
+<li>如果资源所有者拒绝访问请求，或者如果请求由于除了丢失或无效重定向URI以外的原因而失败，则授权服务器通过使用 <code>application/x-www-form-urlencoded</code> 格式<strong>向重定向 URI 的查询组件通知客户端</strong>。</li>
+</ol>
+<h5 id="令牌端点"><a href="#令牌端点" class="headerlink" title="令牌端点"></a>令牌端点</h5><p>/oauth/token：令牌端点，通过上一步获取到的 <strong>授权码</strong> 验证与生成令牌，完成第二个请求，携带如下参数：</p>
+<table>
+<thead>
+<tr>
+<th>参数名称</th>
+<th>是否必填</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>grant_type</td>
+<td>是</td>
+<td>授权模式，值固定为”authorization code”</td>
+</tr>
+<tr>
+<td>code</td>
+<td>是</td>
+<td>上一步获得的授权码</td>
+</tr>
+<tr>
+<td>redirect_uri</td>
+<td>是</td>
+<td>重定向URI，必须与上一步中的该参数值保持一致</td>
+</tr>
+<tr>
+<td>client_id</td>
+<td>是</td>
+<td>客户端的 id</td>
+</tr>
+<tr>
+<td>scope</td>
+<td>否</td>
+<td>授权范围，必须与第一步相同</td>
+</tr>
+</tbody></table>
+<p>如果访问令牌请求有效且经过授权，授权服务器将发出访问令牌和可选的刷新令牌，可以得到如下响应参数：</p>
+<table>
+<thead>
+<tr>
+<th>参数名称</th>
+<th>是否必有</th>
+<th>描述</th>
+<th>是否有实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>access_token</td>
+<td>REQUIRED</td>
+<td>授权服务器颁发的访问令牌</td>
+<td>是</td>
+</tr>
+<tr>
+<td>token_type</td>
+<td>REQUIRED</td>
+<td>令牌类型，该值大小写不敏感，可以是bearer类型或mac类型</td>
+<td>是</td>
+</tr>
+<tr>
+<td>expires_in</td>
+<td>RECOMMENDED</td>
+<td>过期时间，单位为秒</td>
+<td>是</td>
+</tr>
+<tr>
+<td>refresh_token</td>
+<td>OPTIONAL</td>
+<td>表示更新令牌，用来获取下一次的访问令牌</td>
+<td>是，需要设置</td>
+</tr>
+<tr>
+<td>scope</td>
+<td>OPTIONAL</td>
+<td>权限范围，如果有，则与客户端申请的范围一致</td>
+<td>是</td>
+</tr>
+</tbody></table>
+<h4 id="密码模式-1"><a href="#密码模式-1" class="headerlink" title="密码模式"></a>密码模式</h4><p>密码模式不需要授权码，因此只有一个令牌端点<strong>/oauth/token</strong>，请求参数如下：</p>
+<table>
+<thead>
+<tr>
+<th>请求参数</th>
+<th>是否必填</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>grant_type</td>
+<td>REQUIRED</td>
+<td>使用的密码模式，值固定为”password”</td>
+</tr>
+<tr>
+<td>username</td>
+<td>REQUIRED</td>
+<td>用户名</td>
+</tr>
+<tr>
+<td>password</td>
+<td>REQUIRED</td>
+<td>密码</td>
+</tr>
+<tr>
+<td>scope</td>
+<td>OPTIONAL</td>
+<td>请求权限范围</td>
+</tr>
+</tbody></table>
+<p>请求成功和失败的响应同授权码模式。</p>
+<h3 id="spring-security-oauth2实践"><a href="#spring-security-oauth2实践" class="headerlink" title="spring security oauth2实践"></a>spring security oauth2实践</h3><p>spring security oauth2官网：<a href="https://projects.spring.io/spring-security-oauth/docs/oauth2.html" target="_blank" rel="noopener">https://projects.spring.io/spring-security-oauth/docs/oauth2.html</a></p>
+<h4 id="自动配置实现"><a href="#自动配置实现" class="headerlink" title="自动配置实现"></a>自动配置实现</h4><p>授权服务器和资源服务器放在同一个服务器</p>
+<ul>
+<li>在 <code>pom.xml</code> 中添加如下依赖</li>
+</ul>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependencies&gt;</span><br><span class="line">    &lt;dependency&gt;</span><br><span class="line">        &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">        &lt;artifactId&gt;spring-boot-starter-security&lt;/artifactId&gt;</span><br><span class="line">    &lt;/dependency&gt;</span><br><span class="line">    &lt;dependency&gt;</span><br><span class="line">        &lt;groupId&gt;org.springframework.security.oauth.boot&lt;/groupId&gt;</span><br><span class="line">        &lt;artifactId&gt;spring-security-oauth2-autoconfigure&lt;/artifactId&gt;</span><br><span class="line">        &lt;version&gt;$&#123;spring.boot.version&#125;&lt;/version&gt;</span><br><span class="line">    &lt;/dependency&gt;</span><br><span class="line">&lt;/dependencies&gt;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>配置spring security和重定向回调地址</p>
+</li>
+<li><p>启动类添加@EnableAuthorizationServer和@EnableResourceServer</p>
+</li>
+<li><p>写一个资源controller</p>
+</li>
+</ul>
+<p>启动项目会生成登陆密码和客户端信息，就可以获取授权码和访问令牌了。</p>
+<h4 id="授权服务器"><a href="#授权服务器" class="headerlink" title="授权服务器"></a>授权服务器</h4><blockquote>
+<ol>
+<li>客户端的验证与授权</li>
+<li>令牌的生成与发放</li>
+<li>令牌的校验与更新</li>
+</ol>
+</blockquote>
+<p>可以用 @EnableAuthorizationServer 注解来配置OAuth2.0 授权服务机制，通过使用@Bean注解的几个方法一起来配置这个授权服务。</p>
+<p>AuthorizationServerConfigurer中：</p>
+<ul>
+<li>ClientDetailsServiceConfigurer：用来配置客户端详情服务（ClientDetailsService），客户端详情信息在这里进行初始化，一般来说是从内存或者数据库中获取，已经提供了他们的默认实现，也可以自定义。</li>
+<li>AuthorizationServerSecurityConfigurer：用来配置令牌端点(Token Endpoint)的安全约束，比如 ssl 配置、checktoken 是否允许访问，是否允许客户端的表单身份验证等。</li>
+<li>AuthorizationServerEndpointsConfigurer：配置授权服务器各个端点的非安全功能，如令牌存储，令牌自定义，用户批准和授权类型。如果需要密码授权模式，需要提供 <code>AuthenticationManager</code> 的 bean。</li>
+</ul>
+<h5 id="基于内存的客户端信息与令牌存储"><a href="#基于内存的客户端信息与令牌存储" class="headerlink" title="基于内存的客户端信息与令牌存储"></a>基于内存的客户端信息与令牌存储</h5><h6 id="客户端信息"><a href="#客户端信息" class="headerlink" title="客户端信息"></a>客户端信息</h6><p>将读取内存中的客户端信息并将下发的令牌存储在内存中。客户端的配置我们主要实现对参数为 <code>ClientDetailsServiceConfigurer</code> 的方法配置，可以直接写死在代码中，也可以读取配置文件。</p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809215709689.png" alt="image-20200809215709689"></p>
+<p>启动后获取授权码：</p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809220225073.png" alt="image-20200809220225073"></p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809220322040.png" alt="image-20200809220322040"></p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809220542074.png" alt="image-20200809220542074"></p>
+<h6 id="令牌存储"><a href="#令牌存储" class="headerlink" title="令牌存储"></a>令牌存储</h6><p>其实他默认的令牌存储就是使用到内存存储，所以我们无需配置。</p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809222342186.png" alt="image-20200809222342186"></p>
+<h5 id="基于-mysql-的客户端信息与令牌存储"><a href="#基于-mysql-的客户端信息与令牌存储" class="headerlink" title="基于 mysql 的客户端信息与令牌存储"></a>基于 mysql 的客户端信息与令牌存储</h5><p>官方提供了多张表用来存储各种信息。</p>
+<table>
+<thead>
+<tr>
+<th>表名</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>oauth_client_details</td>
+<td>客户端信息</td>
+</tr>
+<tr>
+<td>oauth_code</td>
+<td>服务端生成的 code 值</td>
+</tr>
+<tr>
+<td>oauth_client_token</td>
+<td>客户端系统中存储从服务端获取的 token 数据</td>
+</tr>
+<tr>
+<td>oauth_access_token</td>
+<td>生成的 token 数据</td>
+</tr>
+<tr>
+<td>oauth_refresh_token</td>
+<td>刷新 token</td>
+</tr>
+<tr>
+<td>oauth_approvals</td>
+<td>授权同意信息</td>
+</tr>
+</tbody></table>
+<h6 id="客户端信息-1"><a href="#客户端信息-1" class="headerlink" title="客户端信息"></a>客户端信息</h6><p>对于客户端的配置我们主要还是实现对参数为 <code>ClientDetailsServiceConfigurer</code> 的方法进行配置，我们需要完成以下两步：</p>
+<ol>
+<li>构建一个 jdbc 的 <code>ClientDetailsService</code>，通过他来链接数据库。</li>
+<li>将它配置进 <code>ClientDetailsServiceConfigurer</code> 之中。</li>
+</ol>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809223344312.png" alt="image-20200809223344312"></p>
+<h6 id="基于db的令牌存储"><a href="#基于db的令牌存储" class="headerlink" title="基于db的令牌存储"></a>基于db的令牌存储</h6><p>它主要配置参数为 <code>AuthorizationServerEndpointsConfigurer 的</code>配置方法。同样也只需要两步：</p>
+<ol>
+<li>构建一个 jdbc 的 <code>TokenStore</code>，通过他来链接数据库。</li>
+<li>将它配置进 <code>AuthorizationServerEndpointsConfigurer</code> 之中。</li>
+</ol>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809223513226.png" alt="image-20200809223513226"></p>
+<p>更换token store，让它生效即可：</p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809223652250.png" alt="image-20200809223652250"></p>
+<h5 id="基于-jwt-的令牌生成与配置"><a href="#基于-jwt-的令牌生成与配置" class="headerlink" title="基于 jwt 的令牌生成与配置"></a>基于 jwt 的令牌生成与配置</h5><p>跟前面一样，配置相应的 <code>TokenStore</code>，JwtTokenStore的区别在于不是配置数据源，需要一个叫做 <strong>令牌转换器</strong> 的东西，有了它才能够生成 jwt 格式的 token，所以需要如下几步：</p>
+<ol>
+<li>创建 <strong>令牌转换器</strong>–令牌转换器就是帮助程序在 JWT 编码的令牌和 OAuth 身份验证信息之间进行转换</li>
+<li>创建 <code>JwtTokenStore</code></li>
+<li>配置进 <code>AuthorizationServerEndpointsConfigurer</code></li>
+</ol>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809224417206.png" alt="image-20200809224417206"></p>
+<p>启动后，使用密码模式获取访问令牌：</p>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200809224921283.png" alt="image-20200809224921283"></p>
+<h4 id="资源服务器"><a href="#资源服务器" class="headerlink" title="资源服务器"></a>资源服务器</h4><blockquote>
+<ol>
+<li>向授权服务器请求获取 token（即凭证）</li>
+<li>向授权服务器验证并解析 token 获取用户信息</li>
+<li>资源服务器验证用户是否有权限访问此资源</li>
+</ol>
+</blockquote>
+<p>资源服务器若需要向授权服务器验证并解析 token 获取用户信息，则相应的授权服务器需要配置<strong>check_token</strong>端点</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(AuthorizationServerSecurityConfigurer security)</span> </span>&#123;</span><br><span class="line">    security</span><br><span class="line">        .checkTokenAccess(<span class="string">"isAuthenticated()"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过 @EnableResourceServer 注解到一个 @Configuration 配置类上，并且必须使用 ResourceServerConfigurer 这个配置对象来进行配置,同授权服务器一样，资源服务器的关键接口为 <code>ResourceServerConfigurer</code> ，可以配置的属性有：</p>
+<ul>
+<li>tokenServices：ResourceServerTokenServices 类的实例，用来实现令牌服务。</li>
+<li>resourceId：这个资源服务的ID，这个属性是可选的，但是推荐设置并在授权服务中进行验证。</li>
+<li>其他的拓展属性例如 tokenExtractor 令牌提取器用来提取请求中的令牌。</li>
+<li>请求匹配器，用来设置需要进行保护的资源路径，默认的情况下是受保护资源服务的全部路径。</li>
+<li>受保护资源的访问规则，默认的规则是简单的身份验证（plain authenticated）。</li>
+<li>其他的自定义权限保护规则通过 HttpSecurity 来进行配置。</li>
+</ul>
+<p>而它的适配器为 <code>ResourceServerConfigurerAdapter</code> ，只需要继承它的适配器即可，有如下两个方法：</p>
+<table>
+<thead>
+<tr>
+<th>方法名</th>
+<th>参数类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>configure</td>
+<td>ResourceServerSecurityConfigurer</td>
+<td>资源服务器的属性配置，默认值应该适用于许多应用程序，但可能至少要更改资源 ID。</td>
+</tr>
+<tr>
+<td>configure</td>
+<td>HttpSecurity</td>
+<td>使用此项配置安全资源的访问规则。默认情况下，不在 <code>“/oauth/**”</code> 中的所有资源是受保护的。这个其实就是和 ``spring security` 的配置方式是一样的。</td>
+</tr>
+</tbody></table>
+<p>ResourceServerTokenServices 是组成授权服务的另一半，如果你的授权服务和资源服务在同一个应用程序上的话，你可以使用 DefaultTokenServices ，如果资源服务器是分离开的，那么就必须要确保能够有匹配授权服务提供的 ResourceServerTokenServices，它知道如何对令牌进行解码。RemoteTokenServices是它的实现类， 可以作为一个替代，它将允许资源服务器通过HTTP请求来解码令牌（也就是授权服务的 /oauth/check_token 端点）。如果资源服务没有太大的访问量的话，那么使用RemoteTokenServices 将会很方便。</p>
+<p>对于资源服务器，提供了两种验证与解析令牌的方式：</p>
+<table>
+<thead>
+<tr>
+<th>解析方式</th>
+<th>实现类</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>本地解析</td>
+<td><code>DefaultTokenServices</code></td>
+<td>解析快速，不需要发送任何请求，可以配置令牌存储等。</td>
+<td>一旦授权服务器令牌解析方式发生调整，本地也要进行调整。向资源服务器/客户端提供令牌解析方式是极其不安全的行为。</td>
+</tr>
+<tr>
+<td>远程解析</td>
+<td><code>RemoteTokenServices</code></td>
+<td>资源服务器配置大大减少，方便快捷，自适应授权服务器变化。</td>
+<td>受网络的影响，一旦两个服务器不再一个局域网内，效率会大大降低。</td>
+</tr>
+</tbody></table>
+<p>然而在实际的授权服务器中，我们将会采用的是第二种 远程解析 的方式，最主要的原因是因为他足够安全。</p>
+<h5 id="实践"><a href="#实践" class="headerlink" title="实践"></a>实践</h5><ul>
+<li>准备受保护的访问资源</li>
+<li>启动授权服务器</li>
+<li>添加配置文件</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">server:</span><br><span class="line">  port: <span class="number">9000</span></span><br><span class="line"></span><br><span class="line">security:</span><br><span class="line">  oauth2:</span><br><span class="line">    resource:</span><br><span class="line">      token-info-uri: http:<span class="comment">//localhost:8000/oauth/check_token</span></span><br><span class="line">    client:</span><br><span class="line">      access-token-uri: http:<span class="comment">//localhost:8000/oauth/token</span></span><br><span class="line">      client-id: oauth2</span><br><span class="line">      client-secret: oauth2 # 这里必须是加密前的密钥</span><br><span class="line">      grant-type: authorization_code,password,refresh_token</span><br><span class="line">      scope: all</span><br></pre></td></tr></table></figure>
+
+<p>启动授权服务器和资源服务器，访问受保护的资源：</p>
+<ul>
+<li>未获取访问令牌访问受保护资源时</li>
+</ul>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200810000731314.png" alt="image-20200810000731314"></p>
+<ul>
+<li>用访问令牌访问受保护资源时</li>
+</ul>
+<p><img src="/Users/yeric/Documents/learn_code/hexo/source/_posts/oauth2%E5%92%8Cspring-security-oauth/image-20200810000826365.png" alt="image-20200810000826365"></p>
+<h4 id="自定义授权模式"><a href="#自定义授权模式" class="headerlink" title="自定义授权模式"></a>自定义授权模式</h4><h3 id="后续"><a href="#后续" class="headerlink" title="后续"></a>后续</h3><p>OAuth 2.0客户端和资源服务器将会从Spring Security OAuth 2.x迁移到Spring Security 5.2.x(<a href="https://github.com/spring-projects/spring-security/wiki/OAuth-2.0-Migration-Guide" target="_blank" rel="noopener">https://github.com/spring-projects/spring-security/wiki/OAuth-2.0-Migration-Guide</a>)，且Spring Security不提供Authorization Server支持,Spring Security团队新引入了独立项目<a href="https://github.com/spring-projects-experimental/spring-authorization-server" target="_blank" rel="noopener">Spring Authorization Server</a>。</p>
+
+    
+
+    
+
+    
+
+  </div>
+  <div class="article-info article-info-index">
+    
+    
+    
+
+    
+    <p class="article-more-link">
+      <a class="article-more-a" href="/2020/08/09/oauth2%E5%92%8Cspring-security-oauth/">展开全文 >></a>
+    </p>
+    
+
+    
+    <div class="clearfix"></div>
+  </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hexo部署" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
